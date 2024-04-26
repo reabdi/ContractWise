@@ -22,7 +22,7 @@ from langchain.retrievers import ContextualCompressionRetriever
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import ChatOpenAI
 from langchain_community.chat_models.huggingface import ChatHuggingFace
-
+from huggingface_hub import login
 # from dotenv import load_dotenv
 # load_dotenv()
 # Will be removed in prod
@@ -30,6 +30,9 @@ from langchain_community.chat_models.huggingface import ChatHuggingFace
 # genai.configure(
 #     api_key=os.getenv("GOOGLE_API_KEY")
 # )
+
+def set_api_key(api_name:str, api_key:str):
+    os.environ[api_name] = api_key
 
 def check_empty_pages(documents):
     total_pages = len(documents)
@@ -51,10 +54,10 @@ def process_uploaded_files(uploaded_files, chunk_size_val, chunk_overlap_val):
 
     # Initialize PyPDFDirectoryLoader with the path to the temp directory
     pdf_loader = PyPDFDirectoryLoader(temp_dir)
-    
+
     # Process the files as needed
     documents = pdf_loader.load()
-    
+
     empty_pages_percentage = check_empty_pages(documents)
 
     text_splitter=RecursiveCharacterTextSplitter(chunk_size=chunk_size_val,chunk_overlap=chunk_overlap_val)
@@ -82,7 +85,7 @@ def embedding_model_select(model_name):
     )
     return bge_embeddings
 
-def index_embedding_generation(uploaded_files, chunk_size_val, chunk_overlap_val, 
+def index_embedding_generation(uploaded_files, chunk_size_val, chunk_overlap_val,
                                index_name, model_name, dimension):
     # ======= Creating the Pinecone Index ======= #
     pc = Pinecone()
@@ -107,7 +110,7 @@ def index_embedding_generation(uploaded_files, chunk_size_val, chunk_overlap_val
 
     # ======= Definig the Embedding ======= #
     bge_embeddings = embedding_model_select(model_name)
-    
+
     # ======= Definig the index and the base retriever ======= #
     empty_pct, files_length, documents = process_uploaded_files(uploaded_files, chunk_size_val, chunk_overlap_val)
     # Adding the model name to the metadata
@@ -117,8 +120,8 @@ def index_embedding_generation(uploaded_files, chunk_size_val, chunk_overlap_val
     integer_list = list(range(len(documents)))
     # Convert each integer to a string using list comprehension
     string_list = [str(num) for num in integer_list]
-    index_vals = PineconeVectorStore.from_documents(documents, 
-                                                    bge_embeddings, 
+    index_vals = PineconeVectorStore.from_documents(documents,
+                                                    bge_embeddings,
                                                     index_name=index_name,
                                                     ids=string_list)
     retriever = index_vals.as_retriever(search_type="mmr")
@@ -130,7 +133,7 @@ def index_embedding_fetch_internal(index_name):
     pc = Pinecone()
     index_remote = pc.Index(index_name)
     describe = index_remote.describe_index_stats()
-    
+
     val = index_remote.fetch(ids=['0'])
     model_name = val['vectors']['0']['metadata']['embedding_model']
     # ======= Definig the Embedding ======= #
@@ -145,7 +148,7 @@ def index_embedding_fetch_external(index_name, model_name):
     pc = Pinecone()
     index_remote = pc.Index(index_name)
     describe = index_remote.describe_index_stats()
-    
+
     # ======= Definig the Embedding ======= #
     bge_embeddings = embedding_model_select(model_name)
     docsearch = lc_pinecone.from_existing_index(index_name=index_name, embedding=bge_embeddings)
@@ -180,6 +183,7 @@ def llm_builder(llm_model_name, llm_choice):
         from langchain_openai import ChatOpenAI
         llm = ChatOpenAI(model=llm_model_name, temperature=0)
     else:
+        login(token=os.environ["HUGGING_FACE_API_KEY"])
         llm = HuggingFacePipeline.from_model_id(
         model_id=llm_model_name,
         task="text-generation",
@@ -187,15 +191,15 @@ def llm_builder(llm_model_name, llm_choice):
     )
     return llm
 
-def retrieval_qa_chain(llm, embedding_model_name, 
-                       chunk_size_val, chunk_overlap_val, retriever, question): 
+def retrieval_qa_chain(llm, embedding_model_name,
+                       chunk_size_val, chunk_overlap_val, retriever, question):
     similarity_val=0.6
     # ======= Definig the Embedding ======= #
     bge_embeddings = embedding_model_select(embedding_model_name)
-    splitter = CharacterTextSplitter(chunk_size=int(chunk_size_val*0.75), 
+    splitter = CharacterTextSplitter(chunk_size=int(chunk_size_val*0.75),
                                      chunk_overlap=int(chunk_overlap_val*0.75))
     redundant_filter = EmbeddingsRedundantFilter(embeddings=bge_embeddings)
-    relevant_filter = EmbeddingsFilter(embeddings=bge_embeddings, 
+    relevant_filter = EmbeddingsFilter(embeddings=bge_embeddings,
                                        similarity_threshold=0.5)
     compressor = LLMChainExtractor.from_llm(llm)
     # making the pipeline
@@ -204,15 +208,15 @@ def retrieval_qa_chain(llm, embedding_model_name,
         transformers=[compressor, redundant_filter, relevant_filter]
     )
     #print("________ALL_GOOD_FOR_NOW________\n")
-    # I am going with the retriever for now. 
-    compression_retriever = ContextualCompressionRetriever(base_compressor=pipeline_compressor, 
-                                                           base_retriever=retriever)  
+    # I am going with the retriever for now.
+    compression_retriever = ContextualCompressionRetriever(base_compressor=pipeline_compressor,
+                                                           base_retriever=retriever)
     # create the chain to answer questions
-    #print("llm:", llm) 
-    qa_chain = RetrievalQA.from_chain_type(llm=llm, 
-                                    chain_type="stuff", 
+    #print("llm:", llm)
+    qa_chain = RetrievalQA.from_chain_type(llm=llm,
+                                    chain_type="stuff",
                                     retriever=retriever,
-                                    return_source_documents=True) 
+                                    return_source_documents=True)
     llm_response = qa_chain(question)
     #print("_____________\n", llm_response)
     answer = wrap_text_preserve_newlines(llm_response['result'])

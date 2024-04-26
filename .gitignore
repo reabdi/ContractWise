@@ -1,5 +1,6 @@
 .env
 .venv_rag
+.venv
 sandbox.ipynb
 temp
 __pycache__/

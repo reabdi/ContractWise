@@ -4,6 +4,7 @@ import os
 
 from huggingface_hub import login
 from app import (
+    set_api_key,
     index_embedding_generation,
     index_embedding_fetch_internal,
     index_embedding_fetch_external,
@@ -23,19 +24,27 @@ llm_models = {
     "Gemini Pro v1.5": {"model_name": "gemini-1.5-pro-latest"}
 }
 # Logo at the top of the application
-#st.image("image/inqlect_logo.webp", width=180) 
+#st.image("image/inqlect_logo.webp", width=180)
 
 if 'embedding_model_name' not in st.session_state:
     st.session_state.embedding_model_name = None
 if 'chunk_size' not in st.session_state:
     st.session_state.chunk_size = None
 if 'chunk_overlap' not in st.session_state:
-    st.session_state.chunk_overlap = None 
+    st.session_state.chunk_overlap = None
 if 'retriever' not in st.session_state:
-    st.session_state.retriever = None 
+    st.session_state.retriever = None
 if 'llm' not in st.session_state:
-    st.session_state.llm = None 
+    st.session_state.llm = None
 
+if "PINECONE_API_KEY" not in st.session_state:
+    st.session_state["PINECONE_API_KEY"] = None
+if "GOOGLE_API_KEY" not in st.session_state:
+    st.session_state["GOOGLE_API_KEY"] = None
+if "HUGGING_FACE_API_KEY" not in st.session_state:
+    st.session_state["HUGGING_FACE_API_KEY"] = None
+if "OPENAI_API_KEY" not in st.session_state:
+    st.session_state["OPENAI_API_KEY"] = None
 
 # Title of the application
 st.set_page_config(page_title="ContractWise")
@@ -62,7 +71,7 @@ col1, col2 = st.columns(2)
 with col1:
     st.subheader('Step 1. Inputs', divider='blue')
     st.subheader('Vector Database', divider='gray')
-    upload_to_index = st.radio("Setup your VectorDB ", 
+    upload_to_index = st.radio("Setup your VectorDB ",
                                ("Create a new Pinecone index with pdf files",
                                 "Use an existing Pinecone index"),
                                 index=None)
@@ -73,22 +82,22 @@ with col1:
         chunk_overlap =  st.number_input("Provide your chunk overlap value:", value=50, step=1)
         st.session_state.chunk_size = chunk_size
         st.session_state.chunk_overlap = chunk_overlap
+        pinecone_index_name = st.text_input(
+            "Pinecone Index Name",
+            help="Enter the Pinecone index name.",
+            key="pinecone_index_name"
+        )
         pinecone_api_key = st.text_input(
             "Pinecone API Key",
             type="password",
             help="Enter your Pinecone API key.",
             key="pinecone_api_key_create"
         )
-        pinecone_index_name = st.text_input(
-            "Pinecone Index Name",
-            help="Enter the Pinecone index name.",
-            key="pinecone_index_name"
-        )
         st.markdown(
         "[Click to see more on Pinecone Vector Database](https://docs.pinecone.io/guides/projects/understanding-projects)"
         )
 
-        bge_choice = st.selectbox("Select your embedding model:", list(bge_models.keys()))        
+        bge_choice = st.selectbox("Select your embedding model:", list(bge_models.keys()))
         st.markdown(
         "[Click to see more on BGE models for embedding.](https://huggingface.co/BAAI)"
         )
@@ -98,8 +107,7 @@ with col1:
         model_name = params["model_name"]
         dimension = params["dimention"]
 
-        PINECONE_API_KEY = pinecone_api_key
-        PINECONE_INDEX_NAME = pinecone_index_name
+        st.session_state["PINECONE_API_KEY"] = pinecone_api_key
         run_button_process = st.button('Process')
         if run_button_process:
             if not pinecone_api_key:
@@ -109,30 +117,27 @@ with col1:
                 st.error("Please add your Pinecone Index Name to continue.")
                 st.stop()
             else:
-                if PINECONE_API_KEY not in st.session_state:
-                    st.session_state[PINECONE_API_KEY] = pinecone_api_key
-                    os.environ["pinecone_api_key"] = st.session_state[PINECONE_API_KEY]
-                if PINECONE_INDEX_NAME not in st.session_state:
-                    st.session_state[PINECONE_INDEX_NAME] = pinecone_index_name
-                    os.environ["pinecone_index_name"] = st.session_state[PINECONE_INDEX_NAME]                    
+                set_api_key("PINECONE_API_KEY", pinecone_api_key)
+                if "PINECONE_API_KEY" not in st.session_state:
+                    st.session_state["PINECONE_API_KEY"] = pinecone_api_key
                 with st.spinner("Processing your files..."):
                     try:
                         if uploaded_files and chunk_size and chunk_overlap:
                                 try:
-                                    empty_pct, files_length, vector_ln, retriever, embedding_model_name = index_embedding_generation(uploaded_files, 
+                                    empty_pct, files_length, vector_ln, retriever, embedding_model_name = index_embedding_generation(uploaded_files,
                                                                                                                           chunk_size,
                                                                                                                           chunk_overlap,
-                                                                                                                          pinecone_index_name, 
-                                                                                                                          model_name, 
+                                                                                                                          pinecone_index_name,
+                                                                                                                          model_name,
                                                                                                                           dimension
-                                                                                                                          )                                  
+                                                                                                                          )
                                     st.session_state.embedding_model_name = embedding_model_name
                                     st.session_state.retriever = retriever
                                     st.write(f"{files_length} pages (={vector_ln} vectors) were loaded.")
                                     st.success("Indexing successful!")
-                                    if empty_pct > 5: 
+                                    if empty_pct > 5:
                                         # Basically if the number of empty pages is more than 5%, rais a warning.
-                                        st.warning("Warning: There might be an issue with the PDF files. Empty pages percentage is higher than 5%.") 
+                                        st.warning("Warning: There might be an issue with the PDF files. Empty pages percentage is higher than 5%.")
                                 except Exception as e:
                                     st.error(f"Error in indexing: {e}")
                         else:
@@ -141,23 +146,23 @@ with col1:
                         st.error(f"An error occurred: {e}")
                         st.stop()
     if upload_to_index == "Use an existing Pinecone index":
+        pinecone_index_name = st.text_input(
+            "Pinecone Index Name",
+            help="Enter the Pinecone index name.",
+            key="pinecone_index_name"
+        )
         pinecone_api_key = st.text_input(
             "Pinecone API Key",
             type="password",
             help="Enter your Pinecone API key.",
             key="pinecone_api_key_fetch"
         )
-        pinecone_index_name = st.text_input(
-            "Pinecone Index Name",
-            help="Enter the Pinecone index name.",
-            key="pinecone_index_name"
-        )
         st.markdown(
         "[Click to see more on Pinecone Vector Database](https://docs.pinecone.io/guides/projects/understanding-projects)"
         )
         embedding_source = st.radio('Have you used this tool to create your PineconeDB?', ("Yes", "No"), index=None)
         if embedding_source == 'No':
-            bge_choice = st.selectbox("Select your embedding model:", list(bge_models.keys()))        
+            bge_choice = st.selectbox("Select your embedding model:", list(bge_models.keys()))
             st.markdown(
             "[Click to see more on BGE models for embedding.](https://huggingface.co/BAAI)"
             )
@@ -165,8 +170,7 @@ with col1:
                 st.error("Sorry, this tool currently does not support other embedding methods.")
             params = bge_models[bge_choice]
             model_name = params["model_name"]
-        PINECONE_API_KEY = pinecone_api_key
-        PINECONE_INDEX_NAME = pinecone_index_name
+        st.session_state["PINECONE_API_KEY"] = pinecone_api_key
         run_button_fetch = st.button('Get Index')
         if run_button_fetch:
             if not pinecone_api_key:
@@ -176,17 +180,13 @@ with col1:
                 st.error("Please add your Pinecone Index Name to continue.")
                 st.stop()
             else:
-                if PINECONE_API_KEY not in st.session_state:
-                    st.session_state[PINECONE_API_KEY] = pinecone_api_key
-                    os.environ["pinecone_api_key"] = st.session_state[PINECONE_API_KEY]
-                if PINECONE_INDEX_NAME not in st.session_state:
-                    st.session_state[PINECONE_INDEX_NAME] = pinecone_index_name 
-                    os.environ["pinecone_index_name"] = st.session_state[PINECONE_INDEX_NAME]
-                                 
+                if "PINECONE_API_KEY" not in st.session_state:
+                    st.session_state["PINECONE_API_KEY"] = pinecone_api_key
+                set_api_key("PINECONE_API_KEY", pinecone_api_key)
                 with st.spinner("Getting your index..."):
                     if embedding_source == 'Yes':
                         try:
-                            size, retriever, embedding_model_name = index_embedding_fetch_internal(pinecone_index_name)                                       
+                            size, retriever, embedding_model_name = index_embedding_fetch_internal(pinecone_index_name)
                             st.session_state.embedding_model_name = embedding_model_name
                             st.session_state.retriever = retriever
                             st.write(f"Total of {size} vectors fetched from '{pinecone_index_name}'.")
@@ -197,7 +197,7 @@ with col1:
                         try:
                             size, retriever, embedding_model_name = index_embedding_fetch_external(pinecone_index_name, model_name)
                             st.session_state.embedding_model_name = embedding_model_name
-                            st.session_state.retriever = retriever                                      
+                            st.session_state.retriever = retriever
                             st.write(f"Total of {size} vectors fetched from '{pinecone_index_name}'.")
                             st.success("Fetching was successful!")
                         except Exception as e:
@@ -216,7 +216,7 @@ with col1:
             help="Check here for the list of models: https://huggingface.co/docs/api-inference/en/quicktour",
             key="huffing_face_hub_api"
         )
-        HUGGING_FACE_API_KEY=huffing_face_hub_api
+        st.session_state["HUGGING_FACE_API_KEY"] = huffing_face_hub_api
     elif llm_choice == "Google Gemini":
         llm_choice_gemini = st.selectbox("Select Gemini Version:", ["Gemini Pro v1.5 - Preview"])
         gemini_api_key = st.text_input(
@@ -225,9 +225,9 @@ with col1:
             help="Enter your Google API key.",
             key="gemini_api_key"
         )
-        GOOGLE_API_KEY = gemini_api_key
+        st.session_state["GOOGLE_API_KEY"] = gemini_api_key
         llm_model_name = "gemini-1.5-pro-latest"
-        # This is becaus of the problem of instruction issue with the Gemeni Pro 
+        # This is becaus of the problem of instruction issue with the Gemeni Pro
         # if llm_choice_gemini == "Gemini Pro v1.0":
         #     llm_model_name = "gemini-pro"
         # else:
@@ -240,49 +240,49 @@ with col1:
             help="Enter your Google API key. See more here: https://ai.google.dev/",
             key="openai_api_key"
         )
-        OPENAI_API_KEY=openai_api_key
+        st.session_state["OPENAI_API_KEY"]=openai_api_key
         llm_model_name = llm_choice_openai
     else:
         pass
     run_button_llm = st.button('Build LLM')
     if run_button_llm:
         if llm_choice == "Hugging Face":
+            # Check and set API token environment variables
             if not huffing_face_hub_api:
                 st.error("Please add your Hugging Face API key correctly to continue.")
                 st.stop()
             else:
                 # Check and set API token environment variables
-                if HUGGING_FACE_API_KEY not in st.session_state:
-                    st.session_state[HUGGING_FACE_API_KEY] = huffing_face_hub_api
-                    os.environ["huffing_face_hub_api"] = st.session_state[HUGGING_FACE_API_KEY]
-                login(token=os.environ["huffing_face_hub_api"]) 
+                set_api_key("HUGGING_FACE_API_KEY", huffing_face_hub_api)
+                if "HUGGING_FACE_API_KEY" not in st.session_state:
+                    st.session_state["HUGGING_FACE_API_KEY"] = huffing_face_hub_api
         elif llm_choice == "Google Gemini":
             if not gemini_api_key:
                 st.error("Please add your Google Gemini API key correctly to continue.")
                 st.stop()
             else:
+                set_api_key("GOOGLE_API_KEY", gemini_api_key)
                 # Check and set API token environment variables
-                if GOOGLE_API_KEY not in st.session_state:
-                    st.session_state[GOOGLE_API_KEY] = gemini_api_key
-                    os.environ["gemini_api_key"] = st.session_state[GOOGLE_API_KEY]                 
+                if "GOOGLE_API_KEY" not in st.session_state:
+                    st.session_state["GOOGLE_API_KEY"] = gemini_api_key
         else:
             if not openai_api_key:
                 st.error("Please add your OpenAI API key correctly to continue.")
                 st.stop()
             else:
+                set_api_key("OPENAI_API_KEY", openai_api_key)
                 # Check and set API token environment variables
-                if OPENAI_API_KEY not in st.session_state:
-                    st.session_state[OPENAI_API_KEY] = openai_api_key
-                    os.environ["openai_api_key"] = st.session_state[OPENAI_API_KEY]
+                if "OPENAI_API_KEY" not in st.session_state:
+                    st.session_state["OPENAI_API_KEY"] = openai_api_key
         # ======= Creating the LLM ======= #
         with st.spinner("Building the LLM..."):
             try:
                 llm=llm_builder(llm_model_name, llm_choice)
-                st.session_state.llm = llm                         
+                st.session_state.llm = llm
                 st.success(f"model: '{llm_model_name}' built successfully!")
             except Exception as e:
-                st.error(f"Error indexing: {e}") 
-    st.markdown("---")  
+                st.error(f"Error indexing: {e}")
+    st.markdown("---")
 with col2:
     st.subheader('Step 2. Retrieval Q&A', divider='blue')
     st.subheader('Question', divider='gray')
@@ -312,12 +312,12 @@ with col2:
                     chunk_overlap = st.session_state.chunk_overlap
                 retriever = st.session_state.retriever
                 llm = st.session_state.llm
-                answer, resources = retrieval_qa_chain(llm, 
+                answer, resources = retrieval_qa_chain(llm,
                                             embedding_model_name,
                                             chunk_size,
                                             chunk_overlap,
                                             retriever,
-                                            question 
+                                            question
                                             )
                 #answer, resources = llm_response_caller(qa_chain, question)
                 st.write(answer)
@@ -325,6 +325,3 @@ with col2:
                     st.write(resources)
             except Exception as e:
                 st.error(f"Error indexing: {e}")
-
-
-        
