@@ -22,10 +22,10 @@ Enhance document handling efficiency and retrieval accuracy using state-of-the-a
     .\venv\scripts\activate
     ```
 
-**2. Installing the pakages** \
-    ```bash
-    pip install --upgrade --quiet -r requirements.txt
-    ```
+**2. Installing the pakages** 
+```bash
+pip install --upgrade --quiet -r requirements.txt
+```
 
 
 ## User Interface Layout:
