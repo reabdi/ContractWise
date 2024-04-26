@@ -29,7 +29,7 @@ Enhance document handling efficiency and retrieval accuracy using state-of-the-a
 
 
 ## User Interface Layout:
-![alt text](images\image.png)
+![alt text](images/image.png)
 
 
 ## Notes
