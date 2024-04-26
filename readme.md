@@ -1,10 +1,13 @@
 ## Advance RAG 
 
 **Goal:** 
+Enhance document handling efficiency and retrieval accuracy using state-of-the-art AI technologies.
 
-The overall goal of this code is...
-
-Tecniques that are used:...
+* **Document Uploading:** Processes involve setting up a temporary cloud-based storage for uploaded files and converting them into a manageable format for further operations.
+* **Page Evaluation:** The system evaluates documents, which helps in assessing the quality and completeness of the document data.
+* **Text Processing:** Utilizes advanced machine learning models from [Hugging Face](https://huggingface.co/) for text processing. This includes generating embeddings that represent the document contents in a numerical format suitable for comparison and retrieval.
+* **Index Management:** Creates and manages an index using [Pinecone](https://www.pinecone.io/), which stores these embeddings efficiently. This setup allows for quick retrieval of documents based on their content similarity.
+* **Question-Answering Capabilities:** Integrates machine learning models to extract and retrieve information relevant to user queries, enhancing the accessibility and usability of stored documents.
 
 ## Steps to follow:
 
@@ -44,4 +47,4 @@ Note 2: For semantic similarity tasks, the cosine similarity between the embeddi
 Note 3: The Pinecode index can be creaed directly from the code too. See [this link](https://docs.pinecone.io/guides/indexes/create-an-index) for more information. 
 
 **Notes for Google Gemini Models:**
-Note 1: See this [link](https://ai.google.dev/gemini-api/docs/models/gemini#aqa) to get more infoamtion about Gemini's available models. 
+Note 1: See this [link](https://ai.google.dev/gemini-api/docs/models/gemini#aqa) to get more infoamtion about Gemini's available models.
