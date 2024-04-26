@@ -23,11 +23,6 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import ChatOpenAI
 from langchain_community.chat_models.huggingface import ChatHuggingFace
 
-
-from langchain.chains import (
-    StuffDocumentsChain, LLMChain, ConversationalRetrievalChain
-)
-
 # from dotenv import load_dotenv
 # load_dotenv()
 # Will be removed in prod
@@ -205,19 +200,21 @@ def retrieval_qa_chain(llm, embedding_model_name,
     compressor = LLMChainExtractor.from_llm(llm)
     # making the pipeline
     pipeline_compressor = DocumentCompressorPipeline(
-        transformers=[splitter, compressor, redundant_filter]
+        #transformers=[splitter, compressor, redundant_filter]
+        transformers=[compressor, redundant_filter, relevant_filter]
     )
-    print("________ALL_GOOD_FOR_NOW________\n")
+    #print("________ALL_GOOD_FOR_NOW________\n")
+    # I am going with the retriever for now. 
     compression_retriever = ContextualCompressionRetriever(base_compressor=pipeline_compressor, 
                                                            base_retriever=retriever)  
     # create the chain to answer questions
-    print("llm:", llm) 
+    #print("llm:", llm) 
     qa_chain = RetrievalQA.from_chain_type(llm=llm, 
                                     chain_type="stuff", 
                                     retriever=retriever,
                                     return_source_documents=True) 
     llm_response = qa_chain(question)
-    print("_____________\n", llm_response)
+    #print("_____________\n", llm_response)
     answer = wrap_text_preserve_newlines(llm_response['result'])
     resources = llm_response_sources(llm_response)
     return answer, resources
