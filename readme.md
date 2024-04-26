@@ -1,6 +1,4 @@
-## Advance RAG 
-
-**Goal:** 
+## Goal:
 Enhance document handling efficiency and retrieval accuracy using state-of-the-art AI technologies.
 
 * **Document Uploading:** Processes involve setting up a temporary cloud-based storage for uploaded files and converting them into a manageable format for further operations.
@@ -24,16 +22,14 @@ Enhance document handling efficiency and retrieval accuracy using state-of-the-a
     .\venv\scripts\activate
     ```
 
-**2. Getting the *REPLICATE_API_TOKRN***
-
-visit here: https://replicate.com/account/api-tokens
-
-
-**3. Installing the pakages** \
+**2. Installing the pakages** \
     ```bash
     pip install --upgrade --quiet -r requirements.txt
     ```
 
+
+## User Interface Layout:
+![alt text](images\image.png)
 
 
 ## Notes

@@ -286,10 +286,11 @@ with col1:
 with col2:
     st.subheader('Step 2. Retrieval Q&A', divider='blue')
     st.subheader('Question', divider='gray')
-    question = st.text_input(
+    question = st.text_area(
         "Ask your question",
-        help="You can ask relevant questions about you pdf files.",
-        key="question"
+        help="You can ask relevant questions about your PDF files.",
+        key="question",
+        height=50
     )
     #similarity_val = st.number_input("Provide the similarity value for retrieval process:", value=0.5, min_value=0., max_value=1., step=0.1,
     #                                 help="See the follwing link for more infoamtion: https://python.langchain.com/docs/modules/data_connection/retrievers/contextual_compression/#embeddingsfilter", )
