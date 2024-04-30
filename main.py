@@ -47,8 +47,8 @@ if "OPENAI_API_KEY" not in st.session_state:
     st.session_state["OPENAI_API_KEY"] = None
 
 # Title of the application
-st.set_page_config(page_title="ContractWise")
-st.markdown('<div class="title">ContractWise</div>', unsafe_allow_html=True)
+st.set_page_config(page_title="RAG-Guru")
+st.markdown('<div class="title">RAG-Guru</div>', unsafe_allow_html=True)
 
 st.markdown(
     body='GenAI-Powered Analytical & Advisory Assistant'
