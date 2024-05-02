@@ -19,7 +19,7 @@ Enhance document handling efficiency and retrieval accuracy using state-of-the-a
 * **Windows**
     ```bash
     python -m venv .venv
-    .\venv\scripts\activate
+    .venv\scripts\activate
     ```
 
 **2. Installing the pakages**
