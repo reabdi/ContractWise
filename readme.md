@@ -35,7 +35,6 @@ streamlit run main.py
 ## User Interface Layout:
 ![alt text](images/image.png)
 
-
 ## Notes
 
 **Notes for Pincone Index:** \
