@@ -3,4 +3,6 @@
 .venv
 sandbox.ipynb
 temp
+doc
+ChromaDB
 __pycache__/

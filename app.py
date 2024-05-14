@@ -23,6 +23,8 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import ChatOpenAI
 from langchain_community.chat_models.huggingface import ChatHuggingFace
 from huggingface_hub import login
+from langchain_community.vectorstores import Chroma
+
 # from dotenv import load_dotenv
 # load_dotenv()
 # Will be removed in prod
@@ -86,46 +88,66 @@ def embedding_model_select(model_name):
     return bge_embeddings
 
 def index_embedding_generation(uploaded_files, chunk_size_val, chunk_overlap_val,
-                               index_name, model_name, dimension):
-    # ======= Creating the Pinecone Index ======= #
-    pc = Pinecone()
-
-    cloud = os.environ.get('PINECONE_CLOUD') or 'aws'
-    region = os.environ.get('PINECONE_REGION') or 'us-east-1'
-
-    spec = ServerlessSpec(cloud=cloud, region=region)
-
-    # check if index already exists (it shouldn't if this is first time)
-    if index_name not in pc.list_indexes().names():
-        # if does not exist, create index
-        pc.create_index(
-            index_name,
-            dimension=dimension,
-            metric='cosine',
-            spec=spec
-        )
-        # wait for index to be initialized
-        while not pc.describe_index(index_name).status['ready']:
-            time.sleep(1)
-
+                               index_name, model_name, dimension, vector_database):
     # ======= Definig the Embedding ======= #
     bge_embeddings = embedding_model_select(model_name)
 
     # ======= Definig the index and the base retriever ======= #
     empty_pct, files_length, documents = process_uploaded_files(uploaded_files, chunk_size_val, chunk_overlap_val)
+
     # Adding the model name to the metadata
-    for doc in documents:
-        doc.metadata["embedding_model"] = model_name
-    # Creating the costume ids for the indexing
-    integer_list = list(range(len(documents)))
-    # Convert each integer to a string using list comprehension
-    string_list = [str(num) for num in integer_list]
-    index_vals = PineconeVectorStore.from_documents(documents,
-                                                    bge_embeddings,
-                                                    index_name=index_name,
-                                                    ids=string_list)
-    retriever = index_vals.as_retriever(search_type="mmr")
+    if vector_database == 'Local (Chroma DB)':
+    # Working with the Chroma DB
+    # ======= Creating the Chroma DB ======= #
+        current_directory = os.getcwd()
+        files_and_directories_in_current_directory = os.listdir(current_directory)
+        if index_name not in files_and_directories_in_current_directory:
+            for doc in documents:
+                doc.metadata["embedding_model"] = model_name
+            index_vals = Chroma.from_documents(documents, bge_embeddings, persist_directory=f"./{index_name}")
+            retriever = index_vals.as_retriever(search_type="mmr")   
+        else:
+            raise ValueError(f"The name '{index_name}' is already available in the currentdirectory.")             
+                       
+    # Working with the Pinecone index
+    # ======= Creating the Pinecone Index ======= #
+    elif vector_database == 'On Cloud (Pinecone)':
+        pc = Pinecone()
+
+        cloud = os.environ.get('PINECONE_CLOUD') or 'aws'
+        region = os.environ.get('PINECONE_REGION') or 'us-east-1'
+
+        spec = ServerlessSpec(cloud=cloud, region=region)
+
+        # check if index already exists (it shouldn't if this is first time)
+        if index_name not in pc.list_indexes().names():
+            # if does not exist, create index
+            pc.create_index(
+                index_name,
+                dimension=dimension,
+                metric='cosine',
+                spec=spec
+            )
+            # wait for index to be initialized
+            while not pc.describe_index(index_name).status['ready']:
+                time.sleep(1)
+        else:
+            raise ValueError(f"The name '{index_name}' is already available.")
+        # Adding the model name to the metadata
+        for doc in documents:
+            doc.metadata["embedding_model"] = model_name
+        # Creating the costume ids for the indexing
+        integer_list = list(range(len(documents)))
+        # Convert each integer to a string using list comprehension
+        string_list = [str(num) for num in integer_list]
+        index_vals = PineconeVectorStore.from_documents(documents,
+                                                        bge_embeddings,
+                                                        index_name=index_name,
+                                                        ids=string_list)
+        retriever = index_vals.as_retriever(search_type="mmr")
     # more on the MMR search Here: https://medium.com/tech-that-works/maximal-marginal-relevance-to-rerank-results-in-unsupervised-keyphrase-extraction-22d95015c7c5
+    else:
+        raise ValueError("vector_database must be either 'local (chromadb)' or 'pinecone'")
     return empty_pct, files_length, len(documents), retriever, model_name
 
 
@@ -148,14 +170,19 @@ def index_embedding_fetch_external(index_name, model_name):
     pc = Pinecone()
     index_remote = pc.Index(index_name)
     describe = index_remote.describe_index_stats()
-
     # ======= Definig the Embedding ======= #
     bge_embeddings = embedding_model_select(model_name)
     docsearch = lc_pinecone.from_existing_index(index_name=index_name, embedding=bge_embeddings)
     retriever = docsearch.as_retriever(search_type="mmr")
-
     return describe['total_vector_count'], retriever, model_name
 
+
+def index_embedding_fetch_external_chromadb_external(directory, model_name):
+    # ======= Definig the Embedding ======= #
+    bge_embeddings = embedding_model_select(model_name)
+    db = Chroma(persist_directory=directory, embedding_function=bge_embeddings)
+    retriever = db.as_retriever(search_type="mmr")
+    return len(db), retriever, model_name
 
 def wrap_text_preserve_newlines(text, width=110):
     # Split the input text into lines based on newline characters
@@ -177,7 +204,10 @@ def llm_response_sources(llm_response):
         return resource
 
 def llm_builder(llm_model_name, llm_choice):
-    if llm_choice=="Google Gemini":
+    if llm_choice=="Llama 3":
+        from langchain_groq import ChatGroq
+        llm = ChatGroq(temperature=0, model_name=llm_model_name)    
+    elif llm_choice=="Google Gemini":
         llm = ChatGoogleGenerativeAI(model=llm_model_name, temperature=0)
     elif llm_choice=="OpenAI":
         from langchain_openai import ChatOpenAI
@@ -190,6 +220,7 @@ def llm_builder(llm_model_name, llm_choice):
         pipeline_kwargs={"temperature": 0.1}
     )
     return llm
+
 
 def retrieval_qa_chain(llm, embedding_model_name,
                        chunk_size_val, chunk_overlap_val, retriever, question):

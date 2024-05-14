@@ -16,3 +16,5 @@ streamlit
 watchdog
 python-dotenv
 pypdf
+chromadb
+langchain-groq
