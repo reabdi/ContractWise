@@ -4,7 +4,7 @@ Enhance document handling efficiency and retrieval accuracy using state-of-the-a
 * **Document Uploading:** Processes involve setting up a temporary cloud-based storage for uploaded files and converting them into a manageable format for further operations.
 * **Page Evaluation:** The system evaluates documents, which helps in assessing the quality and completeness of the document data.
 * **Text Processing:** Utilizes advanced machine learning models from [Hugging Face](https://huggingface.co/) for text processing. This includes generating embeddings that represent the document contents in a numerical format suitable for comparison and retrieval.
-* **Index Management:** Creates and manages an index using [Pinecone](https://www.pinecone.io/), which stores these embeddings efficiently. This setup allows for quick retrieval of documents based on their content similarity.
+* **Index Management:** Creates and manages an index/vector database using [ChroamDB](https://www.trychroma.com/) or [Pinecone](https://www.pinecone.io/), which stores these embeddings efficiently. This setup allows for quick retrieval of documents based on their content similarity.
 * **Question-Answering Capabilities:** Integrates machine learning models to extract and retrieve information relevant to user queries, enhancing the accessibility and usability of stored documents.
 
 ## Steps to follow:
